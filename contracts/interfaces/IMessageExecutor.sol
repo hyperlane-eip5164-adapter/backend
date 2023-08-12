@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.2;
+pragma solidity 0.8.17;
 
 interface IMessageDispatcher {
     /**
@@ -14,8 +14,10 @@ interface IMessageDispatcher {
 
     /**  @dev Custom error: Message ID already executed
      *  @param messageId  ID uniquely identifying the message
+     * @param errorData  error data in bytes
+     *
      */
-    error MessageIdAlreadyExecuted(bytes32 messageId);
+    error MessageIdAlreadyExecuted(bytes32 messageId, bytes errorData);
 
     /**  @dev Custom error: Message Failure
      *  @param messageId  ID uniquely identifying the message

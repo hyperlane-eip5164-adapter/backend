@@ -120,7 +120,7 @@ contract HyperlaneReceiverAdapter is
         uint32,
         /* _origin*/ bytes32 _sender,
         bytes memory _body
-    ) external onlyMailbox {
+    ) external virtual override onlyMailbox {
         address adapter = TypeCasts.bytes32ToAddress(_sender);
         (
             uint256 srcChainId,

@@ -37,7 +37,7 @@ const config: HardhatUserConfig = {
   // solidity: "0.8.0",
   paths: { tests: "tests" },
   solidity: {
-    version: '0.8.9',
+    version: '0.8.17',
     settings: {
       evmVersion: process.env.EVM_VERSION || 'london',
       optimizer: {

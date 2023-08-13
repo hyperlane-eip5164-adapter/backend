@@ -9,8 +9,12 @@ import {IMessageDispatcher} from "./interfaces/EIP5164/IMessageDispatcher.sol";
 
 import "./libraries/MessageStruct.sol";
 
-
-contract HyperlaneSenderAdapter is IMessageDispatcher, Ownable {
+contract HyperlaneSenderAdapter is
+    IMessageDispatcher,
+    IMessageRecipient,
+    ISpecifiesInterchainSecurityModule,
+    Ownable
+{
     /// @notice `Mailbox` contract reference.
     IMailbox public immutable mailbox;
 
@@ -95,7 +99,7 @@ contract HyperlaneSenderAdapter is IMessageDispatcher, Ownable {
         uint256 _toChainId,
         address _to,
         bytes calldata _data
-    ) external payable override returns (bytes32) {
+    ) external payable returns (bytes32) {
         address receiverAdapter = receiverAdapters[_toChainId]; // read value into memory once
         if (receiverAdapter == address(0)) {
             revert Errors.InvalidAdapterZeroAddress();
@@ -122,7 +126,7 @@ contract HyperlaneSenderAdapter is IMessageDispatcher, Ownable {
                 hyperlaneMsgId,
                 dstDomainId,
                 500000,
-                MultiMessageSender(msg.sender).caller()
+               address(this)
             )
         {} catch {}
 
@@ -133,7 +137,7 @@ contract HyperlaneSenderAdapter is IMessageDispatcher, Ownable {
     function updateReceiverAdapter(
         uint256[] calldata _dstChainIds,
         address[] calldata _receiverAdapters
-    ) external override onlyOwner {
+    ) external onlyOwner {
         if (_dstChainIds.length != _receiverAdapters.length) {
             revert Errors.MismatchChainsAdaptersLength(
                 _dstChainIds.length,

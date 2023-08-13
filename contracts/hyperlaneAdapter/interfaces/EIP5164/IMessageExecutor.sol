@@ -1,7 +1,9 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.17;
 
-interface IMessageDispatcher {
+import "../../libraries/MessageStruct.sol";
+
+interface IMessageExecutor {
     /**
      * @notice Emitted when a message has successfully been executed.
      * @param fromChainId ID of the chain that dispatched the message
@@ -19,8 +21,8 @@ interface IMessageDispatcher {
      */
     error MessageIdAlreadyExecuted(bytes32 messageId, bytes errorData);
 
-    /**  @dev Custom error: Message Failure
-     *  @param messageId  ID uniquely identifying the message
+    /**
+     * @dev MessageExecutor MUST revert if an individual message fails and SHOULD emit a MessageFailure custom error.
      */
     error MessageFailure(bytes32 messageId, bytes errorData);
 

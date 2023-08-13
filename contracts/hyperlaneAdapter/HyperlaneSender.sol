@@ -7,7 +7,10 @@ import {TypeCasts} from "./libraries/TypeCasts.sol";
 import {Errors} from "./libraries/Errors.sol";
 import {IMessageDispatcher} from "./interfaces/EIP5164/IMessageDispatcher.sol";
 
-contract HyperlaneSenderAdapter is Ownable {
+import "./libraries/MessageStruct.sol";
+
+
+contract HyperlaneSenderAdapter is IMessageDispatcher, Ownable {
     /// @notice `Mailbox` contract reference.
     IMailbox public immutable mailbox;
 
@@ -15,6 +18,12 @@ contract HyperlaneSenderAdapter is Ownable {
     IInterchainGasPaymaster public igp;
 
     uint256 public nonce;
+
+    /**
+     * @notice Receiver adapter address for each destination chain.
+     * @dev dstChainId => receiverAdapter address.
+     */
+    mapping(uint256 => address) public receiverAdapters;
 
     /**
      * @notice Domain identifier for each destination chain.
@@ -29,10 +38,11 @@ contract HyperlaneSenderAdapter is Ownable {
     event IgpSet(address indexed paymaster);
 
     /**
-     * @notice Domain identifier for each destination chain.
-     * @dev dstChainId => dstDomainId.
+     * @notice Emitted when a receiver adapter for a destination chain is updated.
+     * @param dstChainId Destination chain identifier.
+     * @param receiverAdapter Address of the receiver adapter.
      */
-    mapping(uint256 => uint32) public destinationDomains;
+    event ReceiverAdapterUpdated(uint256 dstChainId, address receiverAdapter);
 
     /**
      * @notice Emitted when a domain identifier for a destination chain is updated.
@@ -51,35 +61,6 @@ contract HyperlaneSenderAdapter is Ownable {
         }
         mailbox = IMailbox(_mailbox);
         _setIgp(_igp);
-    }
-
-    /**
-     * @notice Get new message Id and increment nonce
-     * @param _toChainId is the destination chainId.
-     * @param _to is the contract address on the destination chain.
-     */
-
-    function _getNewMessageId(
-        uint256 _toChainId,
-        address _to
-    ) internal returns (bytes32 messageId) {
-        messageId = keccak256(
-            abi.encodePacked(
-                getChainId(),
-                _toChainId,
-                nonce,
-                address(this),
-                _to
-            )
-        );
-        nonce++;
-    }
-
-    /// @dev Get current chain id
-    function getChainId() public view virtual returns (uint256 cid) {
-        assembly {
-            cid := chainid()
-        }
     }
 
     /// @dev we narrow mutability (from view to pure) to remove compiler warnings.
@@ -206,5 +187,34 @@ contract HyperlaneSenderAdapter is Ownable {
     function _setIgp(address _igp) internal {
         igp = IInterchainGasPaymaster(_igp);
         emit IgpSet(_igp);
+    }
+
+    /**
+     * @notice Get new message Id and increment nonce
+     * @param _toChainId is the destination chainId.
+     * @param _to is the contract address on the destination chain.
+     */
+
+    function _getNewMessageId(
+        uint256 _toChainId,
+        address _to
+    ) internal returns (bytes32 messageId) {
+        messageId = keccak256(
+            abi.encodePacked(
+                getChainId(),
+                _toChainId,
+                nonce,
+                address(this),
+                _to
+            )
+        );
+        nonce++;
+    }
+
+    /// @dev Get current chain id
+    function getChainId() public view virtual returns (uint256 cid) {
+        assembly {
+            cid := chainid()
+        }
     }
 }

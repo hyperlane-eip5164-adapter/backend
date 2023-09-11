@@ -1,39 +1,35 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 pragma solidity 0.8.17;
 
 import {HyperlaneSenderAdapter} from "./hyperlaneAdapter/HyperlaneSenderAdapter.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import {IMessageExecutor} from "./hyperlaneAdapter/interfaces/EIP5164/IMessageExecutor.sol";
+import {IMessageDispatcher} from "./hyperlaneAdapter/interfaces/EIP5164/IMessageDispatcher.sol";
+import {TypeCasts} from "./hyperlaneAdapter/libraries/TypeCasts.sol";
+import "./IMultiChainNFT.sol";
 
-import {IMultiChainNFT} from "./IMultiChainNFT.sol";
-
-contract SenderNFT is ERC721URIStorage, HyperlaneSenderAdapter, IMultiChainNFT {
+contract SenderNFT is ERC721URIStorage {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
     address collectionOwner;
 
     event TokenCreated(string ipfsURL, uint256 tokenId);
 
-    // transfer params struct where we specify which NFTs should be transferred to
-    // the destination chain and to which address
-
-    struct TransferParams {
-        uint256 nftId;
-        bytes recipient;
-        string uri;
-    }
+    IMessageDispatcher senderAdapter;
 
     constructor(
         string memory _name,
         string memory _symbol,
-        address _mailbox,
-        address _igp
-    ) ERC721(_name, _symbol) HyperlaneSenderAdapter(_mailbox, _igp) {
+        address _senderAdapter
+    ) ERC721(_name, _symbol) {
         collectionOwner = msg.sender;
+        senderAdapter = IMessageDispatcher(_senderAdapter);
     }
 
     function mintLocal(string memory _tokenURI) external returns (uint256) {
-        require(msg.sender == owner, "only owner");
+        require(msg.sender == collectionOwner, "only owner");
 
         uint256 newTokenId = _tokenIds.current();
         _safeMint(msg.sender, newTokenId);
@@ -59,47 +55,51 @@ contract SenderNFT is ERC721URIStorage, HyperlaneSenderAdapter, IMultiChainNFT {
     /// @param _tokenId nft token ID.
     /// @param _recipient recipient of token ID on destination chain.
     function transferRemote(
-        string calldata destChainId,
+        uint256 destChainId,
         uint256 _tokenId,
         address _recipient
     ) public payable {
-       
         require(_ownerOf(_tokenId) == msg.sender, "caller is not the owner");
-        TransferParams memory transferParams;
-        transferParams.nftId = _tokenId;
-        transferParams.recipient = TypeCasts.addressToBytes32(recipient);
-        transferParams.uri = super.tokenURI(_tokenId);
-        // burning the NFTs from the address of the user calling _burnBatch function
-        _burn(transferParams.nftId);
+        require(_exists(_tokenId), "tokenID: inexistent");
+        string memory _tokenURI = super.tokenURI(_tokenId);
+        _burn(_tokenId);
+        uint256 originalChain = getChainId();
 
-        // sending the transfer params struct to the destination chain as payload.
-        bytes memory packet = abi.encode(transferParams);
+        bytes memory payload = abi.encode(
+            _tokenId,
+            _recipient,
+            _tokenURI,
+            originalChain,
+            address(this)
+        );
 
-        bytes32 hyperlaneMsgId = IMailbox(mailbox).dispatch(destChainId, TypeCasts.addressToBytes32(recipient), packet);
+        // Encode the function call.
+        bytes memory targetData = abi.encodeCall(
+            IMultiChainNFT.mintAfterBurn,
+            payload
+        );
 
-         try
-            igp.payForGas{value: msg.value}(
-                hyperlaneMsgId,
-                dstDomainId,
-                500000,
-               address(this)
-            )
-        {} catch {}
+        senderAdapter.dispatchMessage(destChainId, _recipient, targetData);
     }
 
     function mintRemote(
         uint256 _toChainId,
         address _to,
         string memory _tokenURI
-    ) external returns (uint256) {
-        IMultiChainNFT receiverAdapter = IMultiChainNFT(_to);
-
+    ) external {
         // Encode the function call.
         bytes memory targetData = abi.encodeCall(
-            receiverAdapter.mintLocal,
+            IMultiChainNFT.mintLocal,
             _tokenURI
         );
 
-        dispatchMessage(_toChainId, _to, targetData);
+        senderAdapter.dispatchMessage(_toChainId, _to, targetData);
+    }
+
+    /// @dev Get current chain id
+    function getChainId() public view virtual returns (uint256 cid) {
+        assembly {
+            cid := chainid()
+        }
     }
 }

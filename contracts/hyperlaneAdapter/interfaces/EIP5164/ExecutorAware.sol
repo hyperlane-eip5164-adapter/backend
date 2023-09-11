@@ -97,7 +97,7 @@ abstract contract ExecutorAware {
      * @notice Retrieve signer address from message data.
      * @return _signer Address of the signer
      */
-    function _msgSender() internal view returns (address payable _signer) {
+    function __msgSender() internal view returns (address payable _signer) {
         _signer = payable(msg.sender);
 
         if (msg.data.length >= 20 && isTrustedExecutor(_signer)) {

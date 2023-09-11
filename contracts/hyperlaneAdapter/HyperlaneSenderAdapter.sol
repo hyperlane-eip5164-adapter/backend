@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
 pragma solidity 0.8.17;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
@@ -6,13 +7,12 @@ import {IInterchainGasPaymaster} from "./interfaces/IInterchainGasPaymaster.sol"
 import {TypeCasts} from "./libraries/TypeCasts.sol";
 import {Errors} from "./libraries/Errors.sol";
 import {IMessageDispatcher} from "./interfaces/EIP5164/IMessageDispatcher.sol";
+import {IMessageExecutor} from "./interfaces/EIP5164/IMessageExecutor.sol";
 
 import "./libraries/MessageStruct.sol";
 
 contract HyperlaneSenderAdapter is
     IMessageDispatcher,
-    IMessageRecipient,
-    ISpecifiesInterchainSecurityModule,
     Ownable
 {
     /// @notice `Mailbox` contract reference.
@@ -28,6 +28,8 @@ contract HyperlaneSenderAdapter is
      * @dev dstChainId => receiverAdapter address.
      */
     mapping(uint256 => address) public receiverAdapters;
+
+    mapping(uint256 => bool) public isValidChainId;
 
     /**
      * @notice Domain identifier for each destination chain.
@@ -73,7 +75,7 @@ contract HyperlaneSenderAdapter is
         uint256 toChainId,
         address,
         /* to*/ bytes calldata /* data*/
-    ) external view override returns (uint256) {
+    ) external view returns (uint256) {
         uint32 dstDomainId = _getDestinationDomain(toChainId);
         // destination gasAmount is hardcoded to 500k similar to Wormhole implementation
         // See https://docs.hyperlane.xyz/docs/build-with-hyperlane/guides/paying-for-interchain-gas
@@ -100,8 +102,12 @@ contract HyperlaneSenderAdapter is
         address _to,
         bytes calldata _data
     ) external payable returns (bytes32) {
-        address receiverAdapter = receiverAdapters[_toChainId]; // read value into memory once
-        if (receiverAdapter == address(0)) {
+        //address adapter = receiverAdapters[_toChainId]; // read value into memory once
+        address adapter = _getMessageAdapterAddress(_toChainId);
+        //IMessageExecutor receiverAdapter = IMessageExecutor(adapter);
+        _checkAdapter(_toChainId, adapter);
+
+        if (adapter == address(0)) {
             revert Errors.InvalidAdapterZeroAddress();
         }
         bytes32 msgId = _getNewMessageId(_toChainId, _to);
@@ -111,11 +117,17 @@ contract HyperlaneSenderAdapter is
             revert Errors.UnknownDomainId(_toChainId);
         }
 
+        bytes memory payload = abi.encodeCall(
+            IMessageExecutor.executeMessage,
+            (_to, _data, msgId, getChainId(), msg.sender)
+        );
+
         bytes32 hyperlaneMsgId = IMailbox(mailbox).dispatch(
             dstDomainId,
-            TypeCasts.addressToBytes32(receiverAdapter), //receiver adapter is the reciever
+            TypeCasts.addressToBytes32(adapter), //receiver adapter is the reciever
             // Include the source chain id so that the receiver doesn't have to maintain a srcDomainId => srcChainId mapping
-            abi.encode(getChainId(), msgId, msg.sender, _to, _data)
+            //abi.encode(getChainId(), msgId, msg.sender, _to, _data)
+            payload
         );
 
         // try to make gas payment, ignore failures
@@ -126,7 +138,8 @@ contract HyperlaneSenderAdapter is
                 hyperlaneMsgId,
                 dstDomainId,
                 500000,
-               address(this)
+                //address(this)
+                msg.sender
             )
         {} catch {}
 
@@ -146,8 +159,21 @@ contract HyperlaneSenderAdapter is
         }
         for (uint256 i; i < _dstChainIds.length; ++i) {
             receiverAdapters[_dstChainIds[i]] = _receiverAdapters[i];
+            isValidChainId[_dstChainIds[i]] = true;
             emit ReceiverAdapterUpdated(_dstChainIds[i], _receiverAdapters[i]);
         }
+    }
+
+    function _checkAdapter(uint256 _destChainId, address _executor) internal view {
+        require(_executor != address(0), "Dispatcher/executor-not-set");
+        address executor = receiverAdapters[_destChainId];
+        require(_executor == executor, "Dispatcher/executor-mis-match");
+    }
+
+    function getMessageAdapterAddress(
+        uint256 _toChainId
+    ) external view returns (address) {
+        return _getMessageAdapterAddress(_toChainId);
     }
 
     /**
@@ -213,6 +239,29 @@ contract HyperlaneSenderAdapter is
             )
         );
         nonce++;
+    }
+
+    /**
+     * @notice Check toChainId to ensure messages can be dispatched to this chain.
+     * @dev Will revert if `_toChainId` is not supported.
+     * @param _toChainId ID of the chain receiving the message
+     */
+    function _checkToChainId(uint256 _toChainId) internal view {
+        bool status = isValidChainId[_toChainId];
+        require(status, "Dispatcher/chainId-not-supported");
+    }
+
+    /**
+     * @notice Retrieves address of the MessageExecutor contract on the receiving chain.
+     * @dev Will revert if `_toChainId` is not supported.
+     * @param _toChainId ID of the chain with which MessageDispatcher is communicating
+     * @return receiverAdapter MessageExecutor contract address
+     */
+    function _getMessageAdapterAddress(
+        uint256 _toChainId
+    ) internal view returns (address receiverAdapter) {
+        _checkToChainId(_toChainId);
+        receiverAdapter = receiverAdapters[_toChainId];
     }
 
     /// @dev Get current chain id

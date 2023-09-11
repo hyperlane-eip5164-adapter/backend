@@ -9,7 +9,8 @@ import {IInterchainSecurityModule, ISpecifiesInterchainSecurityModule} from "./i
 import {TypeCasts} from "./libraries/TypeCasts.sol";
 import {Errors} from "./libraries/Errors.sol";
 
-import {IMessageExecutor} from "./interfaces/EIP5164/IMessageDispatcher.sol";
+import {IMessageDispatcher} from "./interfaces/EIP5164/IMessageDispatcher.sol";
+import {IMessageExecutor} from "./interfaces/EIP5164/IMessageExecutor.sol";
 
 import "./libraries/MessageStruct.sol";
 
@@ -94,11 +95,11 @@ contract HyperlaneReceiverAdapter is
 
     function executeMessage(
         address _to,
-        bytes calldata message,
+        bytes memory message,
         bytes32 messageId,
         uint256 fromChainId,
         address from
-    ) internal {
+    ) public {
         (bool success, bytes memory returnData) = _to.call(
             abi.encodePacked(message, messageId, fromChainId, from)
         );
@@ -121,14 +122,24 @@ contract HyperlaneReceiverAdapter is
         /* _origin*/ bytes32 _sender,
         bytes memory _body
     ) external virtual override onlyMailbox {
+        // address adapter = TypeCasts.bytes32ToAddress(_sender);
+        // (
+        //     uint256 srcChainId,
+        //     bytes32 msgId,
+        //     address srcSender,
+        //     address destReceiver,
+        //     bytes memory data
+        // ) = abi.decode(_body, (uint256, bytes32, address, address, bytes));
+
         address adapter = TypeCasts.bytes32ToAddress(_sender);
+        //IMessageDispatcher adapter = IMessageDispatcher(senderAdapter);
         (
-            uint256 srcChainId,
-            bytes32 msgId,
-            address srcSender,
             address destReceiver,
-            bytes memory data
-        ) = abi.decode(_body, (uint256, bytes32, address, address, bytes));
+            bytes memory data,
+            bytes32 msgId,
+            uint256 srcChainId,
+            address srcSender
+        ) = abi.decode(_body, (address, bytes, bytes32, uint256, address));
 
         if (adapter != senderAdapters[srcChainId]) {
             revert Errors.UnauthorizedAdapter(srcChainId, adapter);
@@ -140,12 +151,13 @@ contract HyperlaneReceiverAdapter is
         }
 
         executeMessage(destReceiver, data, msgId, srcChainId, srcSender);
+
     }
 
     function updateSenderAdapter(
         uint256[] calldata _srcChainIds,
         address[] calldata _senderAdapters
-    ) external override onlyOwner {
+    ) external onlyOwner {
         if (_srcChainIds.length != _senderAdapters.length) {
             revert Errors.MismatchChainsAdaptersLength(
                 _srcChainIds.length,
@@ -153,8 +165,10 @@ contract HyperlaneReceiverAdapter is
             );
         }
         for (uint256 i; i < _srcChainIds.length; ++i) {
-            senderAdapters[_srcChainIds[i]] = _senderAdapters[i];
-            emit SenderAdapterUpdated(_srcChainIds[i], _senderAdapters[i]);
+            //address adapter = address(_senderAdapters[i]);
+            address adapter = _senderAdapters[i];
+            senderAdapters[_srcChainIds[i]] = adapter;
+            emit SenderAdapterUpdated(_srcChainIds[i], adapter);
         }
     }
 }

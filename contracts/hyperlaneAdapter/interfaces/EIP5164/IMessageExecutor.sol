@@ -16,10 +16,9 @@ interface IMessageExecutor {
 
     /**  @dev Custom error: Message ID already executed
      *  @param messageId  ID uniquely identifying the message
-     * @param errorData  error data in bytes
      *
      */
-    error MessageIdAlreadyExecuted(bytes32 messageId, bytes errorData);
+    error MessageIdAlreadyExecuted(bytes32 messageId);
 
     /**
      * @dev MessageExecutor MUST revert if an individual message fails and SHOULD emit a MessageFailure custom error.

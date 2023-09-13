@@ -11,10 +11,7 @@ import {IMessageExecutor} from "./interfaces/EIP5164/IMessageExecutor.sol";
 
 import "./libraries/MessageStruct.sol";
 
-contract HyperlaneSenderAdapter is
-    IMessageDispatcher,
-    Ownable
-{
+contract HyperlaneSenderAdapter is IMessageDispatcher, Ownable {
     /// @notice `Mailbox` contract reference.
     IMailbox public immutable mailbox;
 
@@ -27,7 +24,7 @@ contract HyperlaneSenderAdapter is
      * @notice Receiver adapter address for each destination chain.
      * @dev dstChainId => receiverAdapter address.
      */
-    mapping(uint256 => address) public receiverAdapters;
+    mapping(uint256 => IMessageExecutor) public receiverAdapters;
 
     mapping(uint256 => bool) public isValidChainId;
 
@@ -48,7 +45,7 @@ contract HyperlaneSenderAdapter is
      * @param dstChainId Destination chain identifier.
      * @param receiverAdapter Address of the receiver adapter.
      */
-    event ReceiverAdapterUpdated(uint256 dstChainId, address receiverAdapter);
+    event ReceiverAdapterUpdated(uint256 dstChainId, IMessageExecutor receiverAdapter);
 
     /**
      * @notice Emitted when a domain identifier for a destination chain is updated.
@@ -103,11 +100,11 @@ contract HyperlaneSenderAdapter is
         bytes calldata _data
     ) external payable returns (bytes32) {
         //address adapter = receiverAdapters[_toChainId]; // read value into memory once
-        address adapter = _getMessageAdapterAddress(_toChainId);
+        IMessageExecutor adapter = _getMessageAdapterAddress(_toChainId);
         //IMessageExecutor receiverAdapter = IMessageExecutor(adapter);
         _checkAdapter(_toChainId, adapter);
 
-        if (adapter == address(0)) {
+        if (address(adapter) == address(0)) {
             revert Errors.InvalidAdapterZeroAddress();
         }
         bytes32 msgId = _getNewMessageId(_toChainId, _to);
@@ -124,7 +121,7 @@ contract HyperlaneSenderAdapter is
 
         bytes32 hyperlaneMsgId = IMailbox(mailbox).dispatch(
             dstDomainId,
-            TypeCasts.addressToBytes32(adapter), //receiver adapter is the reciever
+            TypeCasts.addressToBytes32(address(adapter)), //receiver adapter is the reciever
             // Include the source chain id so that the receiver doesn't have to maintain a srcDomainId => srcChainId mapping
             //abi.encode(getChainId(), msgId, msg.sender, _to, _data)
             payload
@@ -149,7 +146,7 @@ contract HyperlaneSenderAdapter is
 
     function updateReceiverAdapter(
         uint256[] calldata _dstChainIds,
-        address[] calldata _receiverAdapters
+        IMessageExecutor[] calldata _receiverAdapters
     ) external onlyOwner {
         if (_dstChainIds.length != _receiverAdapters.length) {
             revert Errors.MismatchChainsAdaptersLength(
@@ -164,15 +161,18 @@ contract HyperlaneSenderAdapter is
         }
     }
 
-    function _checkAdapter(uint256 _destChainId, address _executor) internal view {
-        require(_executor != address(0), "Dispatcher/executor-not-set");
-        address executor = receiverAdapters[_destChainId];
+    function _checkAdapter(
+        uint256 _destChainId,
+        IMessageExecutor _executor
+    ) internal view {
+        require(address(_executor) != address(0), "Dispatcher/executor-not-set");
+        IMessageExecutor executor = receiverAdapters[_destChainId];
         require(_executor == executor, "Dispatcher/executor-mis-match");
     }
 
     function getMessageAdapterAddress(
         uint256 _toChainId
-    ) external view returns (address) {
+    ) external view returns (IMessageExecutor) {
         return _getMessageAdapterAddress(_toChainId);
     }
 
@@ -259,7 +259,7 @@ contract HyperlaneSenderAdapter is
      */
     function _getMessageAdapterAddress(
         uint256 _toChainId
-    ) internal view returns (address receiverAdapter) {
+    ) internal view returns (IMessageExecutor receiverAdapter) {
         _checkToChainId(_toChainId);
         receiverAdapter = receiverAdapters[_toChainId];
     }
@@ -269,5 +269,11 @@ contract HyperlaneSenderAdapter is
         assembly {
             cid := chainid()
         }
+    }
+
+    function getDestinationDomain(
+        uint256 _dstChainId
+    ) public view returns (uint32 _destDomainId) {
+        _destDomainId = _getDestinationDomain(_dstChainId);
     }
 }

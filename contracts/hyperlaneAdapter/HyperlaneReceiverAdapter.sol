@@ -34,7 +34,7 @@ contract HyperlaneReceiverAdapter is
      * @notice Sender adapter address for each source chain.
      * @dev srcChainId => senderAdapter address.
      */
-    mapping(uint256 => address) public senderAdapters;
+    mapping(uint256 => IMessageDispatcher) public senderAdapters;
 
     /**
      * @notice Ensure that messages cannot be replayed once they have been executed.
@@ -53,7 +53,7 @@ contract HyperlaneReceiverAdapter is
      * @param srcChainId Source chain identifier.
      * @param senderAdapter Address of the sender adapter.
      */
-    event SenderAdapterUpdated(uint256 srcChainId, address senderAdapter);
+    event SenderAdapterUpdated(uint256 srcChainId, IMessageDispatcher senderAdapter);
 
     /* Constructor */
     /**
@@ -141,7 +141,7 @@ contract HyperlaneReceiverAdapter is
             address srcSender
         ) = abi.decode(_body, (address, bytes, bytes32, uint256, address));
 
-        if (adapter != senderAdapters[srcChainId]) {
+        if (IMessageDispatcher(adapter) != senderAdapters[srcChainId]) {
             revert Errors.UnauthorizedAdapter(srcChainId, adapter);
         }
         if (executedMessages[msgId]) {
@@ -151,12 +151,11 @@ contract HyperlaneReceiverAdapter is
         }
 
         executeMessage(destReceiver, data, msgId, srcChainId, srcSender);
-
     }
 
     function updateSenderAdapter(
         uint256[] calldata _srcChainIds,
-        address[] calldata _senderAdapters
+        IMessageDispatcher[] calldata _senderAdapters
     ) external onlyOwner {
         if (_srcChainIds.length != _senderAdapters.length) {
             revert Errors.MismatchChainsAdaptersLength(
@@ -165,10 +164,14 @@ contract HyperlaneReceiverAdapter is
             );
         }
         for (uint256 i; i < _srcChainIds.length; ++i) {
-            //address adapter = address(_senderAdapters[i]);
-            address adapter = _senderAdapters[i];
-            senderAdapters[_srcChainIds[i]] = adapter;
-            emit SenderAdapterUpdated(_srcChainIds[i], adapter);
+            senderAdapters[_srcChainIds[i]] = _senderAdapters[i];
+            emit SenderAdapterUpdated(_srcChainIds[i], _senderAdapters[i]);
         }
+    }
+
+    function getSenderAdapter(
+        uint256 _srcChainId
+    ) public view returns (IMessageDispatcher _senderAdapter) {
+        _senderAdapter = senderAdapters[_srcChainId];
     }
 }

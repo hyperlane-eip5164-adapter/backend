@@ -26,6 +26,7 @@ contract SenderNFT is ERC721URIStorage {
     ) ERC721(_name, _symbol) {
         collectionOwner = msg.sender;
         senderAdapter = IMessageDispatcher(_senderAdapter);
+        _tokenIds.increment();
     }
 
     function mintLocal(string memory _tokenURI) external returns (uint256) {
@@ -86,7 +87,7 @@ contract SenderNFT is ERC721URIStorage {
         uint256 _toChainId,
         address _to,
         string memory _tokenURI
-    ) external {
+    ) external payable {
         // Encode the function call.
         bytes memory targetData = abi.encodeCall(
             IMultiChainNFT.mintLocal,

@@ -11,7 +11,7 @@ import {TypeCasts} from "./hyperlaneAdapter/libraries/TypeCasts.sol";
 import "./IMultiChainNFT.sol";
 import {ExecutorAware} from "./hyperlaneAdapter/interfaces/EIP5164/ExecutorAware.sol";
 
-contract ReceiverNFT is ERC721URIStorage, IMultiChainNFT, ExecutorAware, Ownable{
+contract ReceiverNFT is IMultiChainNFT, ERC721URIStorage, ExecutorAware, Ownable{
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
     address collectionOwner;
@@ -39,6 +39,7 @@ contract ReceiverNFT is ERC721URIStorage, IMultiChainNFT, ExecutorAware, Ownable
         string memory _symbol
     ) ERC721(_name, _symbol){
         collectionOwner = msg.sender;
+         _tokenIds.increment();
     }
 
     function mintLocal(string memory _tokenURI) external returns (uint256) {

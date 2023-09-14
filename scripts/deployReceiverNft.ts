@@ -2,6 +2,7 @@ import { ethers, Wallet, getDefaultProvider } from "ethers";
 //import { wallet } from "../config/constants";
 require("dotenv").config();
 import { ReceiverNFT__factory} from "../typechain-types";
+//import { hyperlaneReceiverAdapterAddr } from "./deployReceiverAdapter";
 //const rpc = "https://alfajores-forno.celo-testnet.org";
 const privateKey = process.env.NEXT_PUBLIC_EVM_PRIVATE_KEY as string;
 const wallet = new Wallet(privateKey);
@@ -27,8 +28,8 @@ const chains = [
   }
 ]
 
-const hyperlaneReceiverAdapter = "";
-const receiverNftAddr = "0xBa2bAEaEC8B739be77C2F13D9B2a51ba8Eb01166";
+const hyperlaneReceiverAdapterAddr = "0xAe01a07143656121d34496a7bcFf5129eCB32397";
+const receiverNftAddr = "0x296cbAF3b5A78C21FA0dF6Ac2473C7242E8Cec8e";
 const nftName = "Big Token"
 const nftSymbol = "BTK"
 

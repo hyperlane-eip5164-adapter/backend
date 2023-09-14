@@ -1,0 +1,16 @@
+[
+  {
+    "chainName": "Avalanche",
+    "hyperlaneSenderAddr": "",
+    "hyperlaneReceiverAddr": "",
+    "senderNftAddr": "",
+    "receiverNftAddr": ""
+  },
+  {
+    "chainName": "Mumbai",
+    "hyperlaneSenderAddr": "",
+    "hyperlaneReceiverAddr": "",
+    "senderNftAddr": "",
+    "receiverNftAddr": ""
+  }
+]

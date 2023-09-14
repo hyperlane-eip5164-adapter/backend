@@ -4,14 +4,14 @@ pragma solidity 0.8.17;
 import {HyperlaneReceiverAdapter} from "./hyperlaneAdapter/HyperlaneReceiverAdapter.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+//import "@openzeppelin/contracts/access/Ownable.sol";
 import {IMessageExecutor} from "./hyperlaneAdapter/interfaces/EIP5164/IMessageExecutor.sol";
 import {IMessageDispatcher} from "./hyperlaneAdapter/interfaces/EIP5164/IMessageDispatcher.sol";
 import {TypeCasts} from "./hyperlaneAdapter/libraries/TypeCasts.sol";
 import "./IMultiChainNFT.sol";
 import {ExecutorAware} from "./hyperlaneAdapter/interfaces/EIP5164/ExecutorAware.sol";
 
-contract ReceiverNFT is IMultiChainNFT, ERC721URIStorage, ExecutorAware, Ownable{
+contract ReceiverNFT is IMultiChainNFT, ERC721URIStorage, ExecutorAware {
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
     address collectionOwner;
@@ -37,14 +37,14 @@ contract ReceiverNFT is IMultiChainNFT, ERC721URIStorage, ExecutorAware, Ownable
     constructor(
         string memory _name,
         string memory _symbol
-    ) ERC721(_name, _symbol){
+    ) ERC721(_name, _symbol) {
         collectionOwner = msg.sender;
-         _tokenIds.increment();
+        _tokenIds.increment();
     }
 
     function mintLocal(string memory _tokenURI) external returns (uint256) {
         require(isTrustedExecutor(msg.sender), "Greeter/sender-not-executor");
-        require(msg.sender == collectionOwner, "only owner");
+        //require(msg.sender == collectionOwner, "only owner");
 
         uint256 newTokenId = _tokenIds.current();
         _safeMint(msg.sender, newTokenId);
@@ -92,13 +92,15 @@ contract ReceiverNFT is IMultiChainNFT, ERC721URIStorage, ExecutorAware, Ownable
             msg.sender
         );
         return newTokenId;
-    } 
+    }
 
-    function addTrustedAdapter(address _receiverAdapter) external onlyOwner{
+    function addTrustedAdapter(address _receiverAdapter) external {
+        require(msg.sender == collectionOwner);
         _addTrustedExecutor(_receiverAdapter);
     }
 
-    function removeTrustedAdapter(address _receiverAdapter) external onlyOwner {
+    function removeTrustedAdapter(address _receiverAdapter) external {
+        require(msg.sender == collectionOwner);
         _removeTrustedExecutor(_receiverAdapter);
     }
 }

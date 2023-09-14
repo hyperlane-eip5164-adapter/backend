@@ -28,7 +28,7 @@ const chains = [
   }
 ]
 
-const hyperlaneSenderAdapterAddr = "0x69aaA47081B456690996bCaa85601Ea08aEA8326";
+const hyperlaneSenderAdapterAddr = "0xdCecfC53FF1257D4f8482Bc66EA206B03e064F56";
 
 async function main() {
   for (let i = 0; i < chainNames.length; i++) {

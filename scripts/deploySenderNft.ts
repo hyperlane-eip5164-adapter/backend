@@ -2,6 +2,7 @@ import { ethers, Wallet, getDefaultProvider } from "ethers";
 //import { wallet } from "../config/constants";
 require("dotenv").config();
 import { SenderNFT__factory} from "../typechain-types";
+//import { hyperlaneSenderAdapterAddr } from "./deploySenderAdapter"; 
 //const rpc = "https://alfajores-forno.celo-testnet.org";
 const privateKey = process.env.NEXT_PUBLIC_EVM_PRIVATE_KEY as string;
 const wallet = new Wallet(privateKey);
@@ -27,8 +28,8 @@ const chains = [
   }
 ]
 
-const hyperlaneSenderAdapterAddr = "0x69aaA47081B456690996bCaa85601Ea08aEA8326";
-const senderNftAddr = "0xE172Ddb0F3B00b18141EeF77562993d3Fab8e755";
+const hyperlaneSenderAdapterAddr = "0xdCecfC53FF1257D4f8482Bc66EA206B03e064F56";
+const senderNftAddr = "0x7C1dd7B95108B9C4C4d71BeaAf0485698beCf1A9";
 const nftName = "BigToken"
 const nftSymbol = "BTK"
 
@@ -51,7 +52,7 @@ async function deploySenderNft(chain: any) {
   const connectedWallet = wallet.connect(provider);
 
   const senderNftFactory = new SenderNFT__factory(connectedWallet);
-  const senderNftContract = await senderNftFactory.deploy(nftName, nftSymbol, hyperlaneSenderAdapterAddr, { gasLimit: 3000000 });
+  const senderNftContract = await senderNftFactory.deploy(nftName, nftSymbol, hyperlaneSenderAdapterAddr, { gasLimit: 6000000 });
   console.log(`Deploying sender Nft Contract for ${chain.name}...`)
   const deployTxReceipt = await senderNftContract.deployTransaction.wait();
   console.log(`The sender Nft Contract has been deployed for ${chain.name} at this address: ${senderNftContract.address}`);
